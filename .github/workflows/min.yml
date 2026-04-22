@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      # 1. 检出代码（也建议升级到 v4）
+      - name: Checkout code
+        uses: actions/checkout@v4  # 升级到最新版
+        
+      # 2. 设置 Flutter 环境
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: stable
+          
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: flutter pub get
+        
+      # 4. 构建 APK（分架构打包）
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+        
+      # 5. 【关键修复】上传 APK 到 Artifacts（使用 v4）
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4  # ✅ 已修复版本
+        with:
+          name: android-apks
+          path: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
+          retention-days: 7  # 可选：设置保留7天（v4 新增参数）
+          
+      # 6. （可选）验证文件是否存在（避免上传空文件）
+      - name: Verify APK files
+        run: |
+          ls -lh build/app/outputs/flutter-apk/
+          test -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk || exit 1
+
